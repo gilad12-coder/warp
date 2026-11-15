@@ -22,13 +22,11 @@ fn short_hand_flag_suggestions(
     signature: &SpecSignature,
     partial_without_dashes: &str,
 ) -> impl Iterator<Item = MatchedSuggestion> + use<> {
-    // Commands with POSIX-noncompliant flags do not allow short hand flags to be combined, so
-    // `-ver` must not suggest `-verD`.
     let is_combinable = !signature.parser_directives.flags_are_posix_noncompliant
         || partial_without_dashes.is_empty();
     signature
         .short_hand_flags()
-        .filter_map(move |flag| {
+        .filter_map(|flag| {
             let (replacement_text, is_case_sensitive_match) = if is_combinable {
                 // Since short hand flags can be written one after the other
                 // (e.g. ssh -Xv), we can't just prefix match the flag against partial.

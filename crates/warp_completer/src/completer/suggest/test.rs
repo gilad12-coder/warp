@@ -1974,7 +1974,7 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
         completions_with_replacements("java -D", &ctx),
         vec![pair("-D", "-D")]
     );
-    // A value attached to `-D` does not combine with other short flags.
+    // `-Dfoo` does not combine `-D` with other short flags.
     assert!(completions_with_replacements("java -Dfoo", &ctx).is_empty());
     // Short flags match case-sensitively unless the signature is case-insensitive.
     assert!(
