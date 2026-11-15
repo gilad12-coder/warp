@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
+use warp_command_signatures::Opt;
 
 use typed_path::TypedPathBuf;
 
@@ -1929,6 +1930,75 @@ fn test_complete_long_hand_flags_single_dash() {
     assert_eq!(
         complete_at_end_of_line_with_options("java -c", MatchStrategy::CaseInsensitive, &ctx),
         vec!["-classpath", "-cp"]
+    );
+}
+
+#[test]
+fn test_posix_noncompliant_short_flags_are_not_combined() {
+    // Mirrors the real `java` spec: single-dash long flags, one-letter flags,
+    // and flags that cannot be combined (`-ver` is not `-v -e -r`).
+    let mut signature = java_signature();
+    signature.parser_directives.flags_are_posix_noncompliant = true;
+    let version_flag = signature.options.as_ref().unwrap()[0].clone();
+    signature.options.as_mut().unwrap().extend([
+        Opt {
+            exact_string: vec!["-D".to_string()],
+            ..version_flag.clone()
+        },
+        Opt {
+            exact_string: vec!["-h".to_string()],
+            ..version_flag
+        },
+    ]);
+    let registry = create_test_command_registry([signature]);
+    let ctx = FakeCompletionContext::new(registry);
+
+    let completions = |line: &str| -> Vec<(String, String)> {
+        suggestions_for_test(
+            line,
+            line.len(),
+            CompleterOptions {
+                match_strategy: MatchStrategy::CaseInsensitive,
+                fallback_strategy: CompletionsFallbackStrategy::FilePaths,
+                suggest_file_path_completions_only: false,
+                parse_quotes_as_literals: false,
+            },
+            &ctx,
+        )
+        .into_iter()
+        .flat_map(|res| res.suggestions)
+        .map(|s| (s.display().to_string(), s.replacement().to_string()))
+        .collect()
+    };
+
+    // Accepting the suggestion replaces the whole partial flag.
+    assert_eq!(
+        complete_replacement_span("java -ver", &ctx),
+        Some(Span::new(5, 9))
+    );
+    assert_eq!(
+        completions("java -ver"),
+        vec![("-version".to_string(), "-version".to_string())]
+    );
+    assert_eq!(
+        completions("java -D"),
+        vec![("-D".to_string(), "-D".to_string())]
+    );
+    // A bare `-` still lists every flag.
+    assert_eq!(
+        completions("java -")
+            .into_iter()
+            .map(|(display, _)| display)
+            .collect::<Vec<_>>(),
+        vec![
+            "-D",
+            "-h",
+            "--class-path",
+            "--version",
+            "-classpath",
+            "-cp",
+            "-version"
+        ]
     );
 }
 

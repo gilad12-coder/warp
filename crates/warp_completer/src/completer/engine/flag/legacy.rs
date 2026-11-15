@@ -20,7 +20,16 @@ fn short_hand_flag_suggestions(
 ) -> impl Iterator<Item = MatchedSuggestion> + use<> {
     signature
         .short_hand_flags()
-        .filter_map(|flag| {
+        .filter_map(move |flag| {
+            // Commands with POSIX-noncompliant flags (e.g. `java -version`) do not allow
+            // short hand flags to be combined, so `-ver` must not suggest `-verD`.
+            if signature.parser_directives.flags_are_posix_noncompliant
+                && !partial_without_dashes.is_empty()
+                && partial_without_dashes != flag.name
+            {
+                return None;
+            }
+
             // Since short hand flags can be written one after the other
             // (e.g. ssh -Xv), we can't just prefix match the flag against partial.
             // Instead, the logic below assumes that a short hand flag can only be used once.
