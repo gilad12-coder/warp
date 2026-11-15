@@ -17,7 +17,9 @@ use crate::parsers::SignatureAtTokenIndex;
 ///
 /// If the signature's flags are POSIX-noncompliant (e.g. `java -version`), short hand flags
 /// cannot be combined. A non-empty partial then only matches the flag it names exactly
-/// (ignoring case if the signature is case-insensitive), and the replacement is that flag.
+/// (ignoring case if the signature is case-insensitive), and the replacement is that flag. Case
+/// folding follows the signature's directive, as the parser does, rather than the user's
+/// `MatchStrategy`.
 fn short_hand_flag_suggestions(
     signature: &SpecSignature,
     partial_without_dashes: &str,
@@ -62,7 +64,7 @@ fn short_hand_flag_suggestions(
             } else if partial_without_dashes == flag.name {
                 (format!("-{}", flag.name), true)
             } else if signature.parser_directives.always_case_insensitive
-                && partial_without_dashes.eq_ignore_ascii_case(flag.name)
+                && partial_without_dashes.to_lowercase() == flag.name.to_lowercase()
             {
                 (format!("-{}", flag.name), false)
             } else {

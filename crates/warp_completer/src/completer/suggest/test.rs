@@ -4,11 +4,12 @@ use std::iter::FromIterator;
 use typed_path::TypedPathBuf;
 
 use super::{
-    CompleterOptions, CompletionsFallbackStrategy, SuggestionResults, SuggestionType, suggestions,
+    CompleterOptions, CompletionsFallbackStrategy, ExplicitTabCompletion, SuggestionResults,
+    SuggestionType, suggestions,
 };
 use crate::completer::context::CompletionContext;
 use crate::completer::engine::EngineDirEntry;
-use crate::completer::matchers::MatchStrategy;
+use crate::completer::matchers::{Match, MatchStrategy};
 use crate::completer::testing::{
     FakeCompletionContext, MockGeneratorContext, MockPathCompletionContext,
 };
@@ -227,6 +228,36 @@ fn complete_replacement_span_at_cursor_pos<T: CompletionContext>(
         ctx,
     )
     .map(|results| results.replacement_span)
+}
+
+fn results_at_end_of_line<T: CompletionContext>(line: &str, ctx: &T) -> Option<SuggestionResults> {
+    suggestions_for_test(
+        line,
+        line.len(),
+        CompleterOptions {
+            match_strategy: MatchStrategy::CaseInsensitive,
+            fallback_strategy: CompletionsFallbackStrategy::FilePaths,
+            suggest_file_path_completions_only: false,
+            parse_quotes_as_literals: false,
+        },
+        ctx,
+    )
+}
+
+/// Returns `(display, replacement)` for each suggestion at the end of `line`.
+fn completions_with_replacements<T: CompletionContext>(
+    line: &str,
+    ctx: &T,
+) -> Vec<(String, String)> {
+    results_at_end_of_line(line, ctx)
+        .into_iter()
+        .flat_map(|res| res.suggestions)
+        .map(|s| (s.display().to_string(), s.replacement().to_string()))
+        .collect()
+}
+
+fn display_and_replacement(display: &str, replacement: &str) -> (String, String) {
+    (display.to_string(), replacement.to_string())
 }
 
 #[test]
@@ -1933,32 +1964,6 @@ fn test_complete_long_hand_flags_single_dash() {
     );
 }
 
-/// Returns `(display, replacement)` for each suggestion at the end of `line`.
-fn completions_with_replacements<T: CompletionContext>(
-    line: &str,
-    ctx: &T,
-) -> Vec<(String, String)> {
-    suggestions_for_test(
-        line,
-        line.len(),
-        CompleterOptions {
-            match_strategy: MatchStrategy::CaseInsensitive,
-            fallback_strategy: CompletionsFallbackStrategy::FilePaths,
-            suggest_file_path_completions_only: false,
-            parse_quotes_as_literals: false,
-        },
-        ctx,
-    )
-    .into_iter()
-    .flat_map(|res| res.suggestions)
-    .map(|s| (s.display().to_string(), s.replacement().to_string()))
-    .collect()
-}
-
-fn pair(display: &str, replacement: &str) -> (String, String) {
-    (display.to_string(), replacement.to_string())
-}
-
 #[test]
 fn test_posix_noncompliant_short_flags_are_not_combined() {
     let registry = create_test_command_registry([posix_noncompliant_java_signature(false)]);
@@ -1971,11 +1976,11 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
     );
     assert_eq!(
         completions_with_replacements("java -ver", &ctx),
-        vec![pair("-version", "-version")]
+        vec![display_and_replacement("-version", "-version")]
     );
     assert_eq!(
         completions_with_replacements("java -D", &ctx),
-        vec![pair("-D", "-D")]
+        vec![display_and_replacement("-D", "-D")]
     );
     // `-Dfoo` does not combine `-D` with other short flags.
     assert!(completions_with_replacements("java -Dfoo", &ctx).is_empty());
@@ -2022,12 +2027,38 @@ fn test_posix_noncompliant_short_flags_case_insensitive() {
     // `-d` names `-D`, and accepting it inserts the flag's own spelling.
     assert_eq!(
         completions_with_replacements("java -d", &ctx),
-        vec![pair("-D", "-D")]
+        vec![display_and_replacement("-D", "-D")]
     );
     assert_eq!(
         completions_with_replacements("java -VER", &ctx),
-        vec![pair("-version", "-version")]
+        vec![display_and_replacement("-version", "-version")]
     );
+
+    let results = results_at_end_of_line("java -D", &ctx).expect("suggestions for `java -D`");
+    assert!(matches!(
+        results.suggestions[0].match_type,
+        Match::Prefix {
+            is_case_sensitive: true
+        }
+    ));
+
+    let results = results_at_end_of_line("java -d", &ctx).expect("suggestions for `java -d`");
+    assert!(matches!(
+        results.suggestions[0].match_type,
+        Match::Prefix {
+            is_case_sensitive: false
+        }
+    ));
+    // Tab replaces `-d` with `-D`.
+    let ExplicitTabCompletion::InsertSingle {
+        suggestion,
+        replacement_span,
+    } = results.explicit_tab_completion("-d", &['/'])
+    else {
+        panic!("`-D` should be inserted");
+    };
+    assert_eq!(suggestion.suggestion.replacement, "-D");
+    assert_eq!(replacement_span, Span::new(5, 7));
 }
 
 #[test]
