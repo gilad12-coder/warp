@@ -1985,11 +1985,7 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
     // `-Dfoo` does not combine `-D` with other short flags.
     assert!(completions_with_replacements("java -Dfoo", &ctx).is_empty());
     // Short flags match case-sensitively unless the signature is case-insensitive.
-    assert!(
-        !completions_with_replacements("java -d", &ctx)
-            .iter()
-            .any(|(display, _)| display == "-D")
-    );
+    assert!(completions_with_replacements("java -d", &ctx).is_empty());
 
     // A bare `-` still lists every flag.
     assert_eq!(
