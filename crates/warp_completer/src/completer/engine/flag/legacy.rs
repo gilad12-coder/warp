@@ -14,6 +14,10 @@ use crate::parsers::SignatureAtTokenIndex;
 /// We currently omit surfacing flags that are already in partial_without_dashes, except
 /// for the most recent one (i.e. with `-abc`, we would omit `-a` and `-b` but include
 /// `-c`), which is used for the Describe API.
+///
+/// If the signature's flags are POSIX-noncompliant (e.g. `java -version`), short hand flags
+/// cannot be combined. A non-empty partial then only matches the flag it names exactly
+/// (ignoring case if the signature is case-insensitive), and the replacement is that flag.
 fn short_hand_flag_suggestions(
     signature: &SpecSignature,
     partial_without_dashes: &str,
@@ -21,13 +25,19 @@ fn short_hand_flag_suggestions(
     signature
         .short_hand_flags()
         .filter_map(move |flag| {
-            // Commands with POSIX-noncompliant flags (e.g. `java -version`) do not allow
-            // short hand flags to be combined, so `-ver` must not suggest `-verD`.
-            if signature.parser_directives.flags_are_posix_noncompliant
-                && !partial_without_dashes.is_empty()
-                && partial_without_dashes != flag.name
-            {
-                return None;
+            // Commands with POSIX-noncompliant flags do not allow short hand flags to be
+            // combined, so `-ver` must not suggest `-verD`.
+            let is_combinable = !signature.parser_directives.flags_are_posix_noncompliant
+                || partial_without_dashes.is_empty();
+            if !is_combinable {
+                let is_exact_match = if signature.parser_directives.always_case_insensitive {
+                    partial_without_dashes.eq_ignore_ascii_case(flag.name)
+                } else {
+                    partial_without_dashes == flag.name
+                };
+                if !is_exact_match {
+                    return None;
+                }
             }
 
             // Since short hand flags can be written one after the other
@@ -45,9 +55,13 @@ fn short_hand_flag_suggestions(
                 .chars()
                 .last()
                 .is_some_and(|c| c.to_string() == flag.name);
-            let should_include_flag = !is_flag_already_included || is_current_flag;
+            let should_include_flag =
+                !is_combinable || !is_flag_already_included || is_current_flag;
             should_include_flag.then(|| {
-                let replacement_text = if is_current_flag {
+                let replacement_text = if !is_combinable {
+                    // The flag stands alone, so it replaces the whole partial.
+                    format!("-{}", flag.name)
+                } else if is_current_flag {
                     // The replacement text should be exactly the existing flags.
                     format!("-{partial_without_dashes}")
                 } else {

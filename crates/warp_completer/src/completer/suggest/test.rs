@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
-use warp_command_signatures::Opt;
 
 use typed_path::TypedPathBuf;
+use warp_command_signatures::{Opt, Priority, Signature};
 
 use super::{
     CompleterOptions, CompletionsFallbackStrategy, SuggestionResults, SuggestionType, suggestions,
@@ -1933,43 +1933,53 @@ fn test_complete_long_hand_flags_single_dash() {
     );
 }
 
-#[test]
-fn test_posix_noncompliant_short_flags_are_not_combined() {
-    // Mirrors the real `java` spec: single-dash long flags, one-letter flags,
-    // and flags that cannot be combined (`-ver` is not `-v -e -r`).
+/// The `java` test signature with the shape of the real `java` spec: single-dash long
+/// flags, one-letter flags, and flags that cannot be combined (`-ver` is not `-v -e -r`).
+fn posix_noncompliant_java_signature(always_case_insensitive: bool) -> Signature {
+    let short_flag = |name: &str, description: &str| Opt {
+        exact_string: vec![name.to_string()],
+        description: Some(description.to_string()),
+        arguments: None,
+        required: false,
+        priority: Priority::default(),
+    };
     let mut signature = java_signature();
     signature.parser_directives.flags_are_posix_noncompliant = true;
-    let version_flag = signature.options.as_ref().unwrap()[0].clone();
+    signature.parser_directives.always_case_insensitive = always_case_insensitive;
     signature.options.as_mut().unwrap().extend([
-        Opt {
-            exact_string: vec!["-D".to_string()],
-            ..version_flag.clone()
-        },
-        Opt {
-            exact_string: vec!["-h".to_string()],
-            ..version_flag
-        },
+        short_flag("-D", "set a system property"),
+        short_flag("-h", "print help"),
     ]);
-    let registry = create_test_command_registry([signature]);
-    let ctx = FakeCompletionContext::new(registry);
+    signature
+}
 
-    let completions = |line: &str| -> Vec<(String, String)> {
-        suggestions_for_test(
-            line,
-            line.len(),
-            CompleterOptions {
-                match_strategy: MatchStrategy::CaseInsensitive,
-                fallback_strategy: CompletionsFallbackStrategy::FilePaths,
-                suggest_file_path_completions_only: false,
-                parse_quotes_as_literals: false,
-            },
-            &ctx,
-        )
-        .into_iter()
-        .flat_map(|res| res.suggestions)
-        .map(|s| (s.display().to_string(), s.replacement().to_string()))
-        .collect()
-    };
+/// Returns `(display, replacement)` for each suggestion at the end of `line`.
+fn completions_with_replacements<T: CompletionContext>(
+    line: &str,
+    ctx: &T,
+) -> Vec<(String, String)> {
+    suggestions_for_test(
+        line,
+        line.len(),
+        CompleterOptions {
+            match_strategy: MatchStrategy::CaseInsensitive,
+            fallback_strategy: CompletionsFallbackStrategy::FilePaths,
+            suggest_file_path_completions_only: false,
+            parse_quotes_as_literals: false,
+        },
+        ctx,
+    )
+    .into_iter()
+    .flat_map(|res| res.suggestions)
+    .map(|s| (s.display().to_string(), s.replacement().to_string()))
+    .collect()
+}
+
+#[test]
+fn test_posix_noncompliant_short_flags_are_not_combined() {
+    let registry = create_test_command_registry([posix_noncompliant_java_signature(false)]);
+    let ctx = FakeCompletionContext::new(registry);
+    let pair = |display: &str, replacement: &str| (display.to_string(), replacement.to_string());
 
     // Accepting the suggestion replaces the whole partial flag.
     assert_eq!(
@@ -1977,19 +1987,29 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
         Some(Span::new(5, 9))
     );
     assert_eq!(
-        completions("java -ver"),
-        vec![("-version".to_string(), "-version".to_string())]
+        completions_with_replacements("java -ver", &ctx),
+        vec![pair("-version", "-version")]
     );
     assert_eq!(
-        completions("java -D"),
-        vec![("-D".to_string(), "-D".to_string())]
+        completions_with_replacements("java -D", &ctx),
+        vec![pair("-D", "-D")]
     );
+    // Short flags match case-sensitively unless the signature is case-insensitive.
+    assert!(
+        !completions_with_replacements("java -d", &ctx)
+            .iter()
+            .any(|(display, _)| display == "-D")
+    );
+
     // A bare `-` still lists every flag.
-    assert_eq!(
-        completions("java -")
+    let displays = |line: &str| -> Vec<String> {
+        completions_with_replacements(line, &ctx)
             .into_iter()
             .map(|(display, _)| display)
-            .collect::<Vec<_>>(),
+            .collect()
+    };
+    assert_eq!(
+        displays("java -"),
         vec![
             "-D",
             "-h",
@@ -1999,6 +2019,35 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
             "-cp",
             "-version"
         ]
+    );
+    // So does a trailing space, with long flags first.
+    assert_eq!(
+        displays("java "),
+        vec![
+            "--class-path",
+            "--version",
+            "-classpath",
+            "-cp",
+            "-version",
+            "-D",
+            "-h"
+        ]
+    );
+}
+
+#[test]
+fn test_posix_noncompliant_short_flags_case_insensitive() {
+    let registry = create_test_command_registry([posix_noncompliant_java_signature(true)]);
+    let ctx = FakeCompletionContext::new(registry);
+
+    // `-d` names `-D`, and accepting it inserts the flag's own spelling.
+    assert_eq!(
+        completions_with_replacements("java -d", &ctx),
+        vec![("-D".to_string(), "-D".to_string())]
+    );
+    assert_eq!(
+        completions_with_replacements("java -VER", &ctx),
+        vec![("-version".to_string(), "-version".to_string())]
     );
 }
 
