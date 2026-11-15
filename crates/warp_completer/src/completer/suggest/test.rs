@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 
 use typed_path::TypedPathBuf;
-use warp_command_signatures::{Opt, Priority, Signature};
 
 use super::{
     CompleterOptions, CompletionsFallbackStrategy, SuggestionResults, SuggestionType, suggestions,
@@ -18,7 +17,8 @@ use crate::signatures::CommandRegistry;
 use crate::signatures::testing::{
     add_content_signature, cd_signature, create_test_command_registry,
     enum_then_path_option_signature, fuzzy_signature, git_signature, java_signature, ls_signature,
-    npm_signature, signature_with_empty_positional, test_signature,
+    npm_signature, posix_noncompliant_java_signature, signature_with_empty_positional,
+    test_signature,
 };
 
 #[cfg(windows)]
@@ -1933,26 +1933,6 @@ fn test_complete_long_hand_flags_single_dash() {
     );
 }
 
-/// The `java` test signature with the shape of the real `java` spec: single-dash long
-/// flags, one-letter flags, and flags that cannot be combined (`-ver` is not `-v -e -r`).
-fn posix_noncompliant_java_signature(always_case_insensitive: bool) -> Signature {
-    let short_flag = |name: &str, description: &str| Opt {
-        exact_string: vec![name.to_string()],
-        description: Some(description.to_string()),
-        arguments: None,
-        required: false,
-        priority: Priority::default(),
-    };
-    let mut signature = java_signature();
-    signature.parser_directives.flags_are_posix_noncompliant = true;
-    signature.parser_directives.always_case_insensitive = always_case_insensitive;
-    signature.options.as_mut().unwrap().extend([
-        short_flag("-D", "set a system property"),
-        short_flag("-h", "print help"),
-    ]);
-    signature
-}
-
 /// Returns `(display, replacement)` for each suggestion at the end of `line`.
 fn completions_with_replacements<T: CompletionContext>(
     line: &str,
@@ -1994,6 +1974,8 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
         completions_with_replacements("java -D", &ctx),
         vec![pair("-D", "-D")]
     );
+    // A value attached to `-D` does not combine with other short flags.
+    assert!(completions_with_replacements("java -Dfoo", &ctx).is_empty());
     // Short flags match case-sensitively unless the signature is case-insensitive.
     assert!(
         !completions_with_replacements("java -d", &ctx)

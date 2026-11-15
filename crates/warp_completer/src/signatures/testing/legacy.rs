@@ -277,6 +277,26 @@ pub fn java_signature() -> Signature {
     }
 }
 
+/// The `java` test signature with the shape of the real `java` spec: single-dash long
+/// flags, one-letter flags, and flags that cannot be combined (`-ver` is not `-v -e -r`).
+pub fn posix_noncompliant_java_signature(always_case_insensitive: bool) -> Signature {
+    let short_flag = |name: &str, description: &str| Opt {
+        exact_string: vec![name.to_string()],
+        description: Some(description.to_string()),
+        arguments: None,
+        required: false,
+        priority: Priority::default(),
+    };
+    let mut signature = java_signature();
+    signature.parser_directives.flags_are_posix_noncompliant = true;
+    signature.parser_directives.always_case_insensitive = always_case_insensitive;
+    signature.options.as_mut().unwrap().extend([
+        short_flag("-D", "set a system property"),
+        short_flag("-h", "print help"),
+    ]);
+    signature
+}
+
 /// A signature with a single positional that has no argument types.
 pub fn signature_with_empty_positional() -> Signature {
     Signature {
