@@ -24,6 +24,11 @@ fn short_hand_flag_suggestions(
 ) -> impl Iterator<Item = MatchedSuggestion> + use<> {
     let is_combinable = !signature.parser_directives.flags_are_posix_noncompliant
         || partial_without_dashes.is_empty();
+    let case_sensitivity = if signature.parser_directives.always_case_insensitive {
+        OptionCaseSensitivity::CaseInsensitive
+    } else {
+        OptionCaseSensitivity::CaseSensitive
+    };
     signature
         .short_hand_flags()
         .filter_map(|flag| {
@@ -62,12 +67,6 @@ fn short_hand_flag_suggestions(
                 (format!("-{}", flag.name), false)
             } else {
                 return None;
-            };
-
-            let case_sensitivity = if signature.parser_directives.always_case_insensitive {
-                OptionCaseSensitivity::CaseInsensitive
-            } else {
-                OptionCaseSensitivity::CaseSensitive
             };
 
             let suggestion = Suggestion::new(

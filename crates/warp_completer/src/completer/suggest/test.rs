@@ -1955,11 +1955,14 @@ fn completions_with_replacements<T: CompletionContext>(
     .collect()
 }
 
+fn pair(display: &str, replacement: &str) -> (String, String) {
+    (display.to_string(), replacement.to_string())
+}
+
 #[test]
 fn test_posix_noncompliant_short_flags_are_not_combined() {
     let registry = create_test_command_registry([posix_noncompliant_java_signature(false)]);
     let ctx = FakeCompletionContext::new(registry);
-    let pair = |display: &str, replacement: &str| (display.to_string(), replacement.to_string());
 
     // Accepting the suggestion replaces the whole partial flag.
     assert_eq!(
@@ -1984,14 +1987,8 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
     );
 
     // A bare `-` still lists every flag.
-    let displays = |line: &str| -> Vec<String> {
-        completions_with_replacements(line, &ctx)
-            .into_iter()
-            .map(|(display, _)| display)
-            .collect()
-    };
     assert_eq!(
-        displays("java -"),
+        complete_at_end_of_line_with_options("java -", MatchStrategy::CaseInsensitive, &ctx),
         vec![
             "-D",
             "-h",
@@ -2004,7 +2001,7 @@ fn test_posix_noncompliant_short_flags_are_not_combined() {
     );
     // So does a trailing space, with long flags first.
     assert_eq!(
-        displays("java "),
+        complete_at_end_of_line_with_options("java ", MatchStrategy::CaseInsensitive, &ctx),
         vec![
             "--class-path",
             "--version",
@@ -2025,11 +2022,11 @@ fn test_posix_noncompliant_short_flags_case_insensitive() {
     // `-d` names `-D`, and accepting it inserts the flag's own spelling.
     assert_eq!(
         completions_with_replacements("java -d", &ctx),
-        vec![("-D".to_string(), "-D".to_string())]
+        vec![pair("-D", "-D")]
     );
     assert_eq!(
         completions_with_replacements("java -VER", &ctx),
-        vec![("-version".to_string(), "-version".to_string())]
+        vec![pair("-version", "-version")]
     );
 }
 
