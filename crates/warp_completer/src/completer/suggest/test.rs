@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 
 use typed_path::TypedPathBuf;
+use warp_util::path::ShellFamily;
 
 use super::{
     CompleterOptions, CompletionsFallbackStrategy, ExplicitTabCompletion, SuggestionResults,
@@ -2555,6 +2556,86 @@ fn test_unquoted_path_completion_is_unchanged() {
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![]
+    );
+}
+
+fn powershell_path_ctx(entries: impl IntoIterator<Item = EngineDirEntry>) -> FakeCompletionContext {
+    let pwd = TypedPathBuf::from(TEST_WORK_DIR);
+    let path_ctx = MockPathCompletionContext::new(pwd.clone())
+        .with_shell_family(ShellFamily::PowerShell)
+        .with_entries(pwd.join("dir one/"), [EngineDirEntry::test_file("file")])
+        .with_entries_in_pwd(entries);
+    FakeCompletionContext::new(create_test_command_registry([ls_signature()]))
+        .with_shell_family(ShellFamily::PowerShell)
+        .with_path_completion_context(path_ctx)
+}
+
+fn powershell_quoted_path_ctx() -> FakeCompletionContext {
+    powershell_path_ctx([
+        EngineDirEntry::test_file("one two"),
+        EngineDirEntry::test_dir("dir one"),
+    ])
+}
+
+#[test]
+fn test_powershell_path_completion_keeps_opening_quote() {
+    let ctx = powershell_quoted_path_ctx();
+    for file_paths_only in [false, true] {
+        for (line, expected) in [("ls 'one", "'one two'"), ("ls \"one", "\"one two\"")] {
+            assert_eq!(
+                tab_completions_at_cursor(line, line.len(), file_paths_only, &ctx),
+                vec![("one two".to_owned(), expected.to_owned())],
+                "line: {line}, file_paths_only: {file_paths_only}",
+            );
+        }
+    }
+    assert_eq!(
+        tab_completions_at_cursor("ls 'dir", 7, false, &ctx),
+        vec![("dir one/".to_owned(), "'dir one/".to_owned())],
+    );
+    let line = "ls 'dir one/fi";
+    assert_eq!(
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
+        vec![("file".to_owned(), "'dir one/file'".to_owned())],
+    );
+}
+
+#[test]
+fn test_powershell_quoted_completion_follows_powershell_quote_rules() {
+    let single_breaking = ['\'', '\u{2018}', '\u{2019}', '\u{201A}', '\u{201B}'];
+    let double_breaking = ['"', '$', '`', '\u{201C}', '\u{201D}', '\u{201E}'];
+    // Backslash and `!` are plain characters in both PowerShell quote kinds.
+    let cases = single_breaking
+        .map(|c| (c, false, true))
+        .into_iter()
+        .chain(double_breaking.map(|c| (c, true, false)))
+        .chain([('\\', true, true), ('!', true, true)]);
+    for (c, single_holds, double_holds) in cases {
+        let name = format!("a{c}b");
+        let ctx = powershell_path_ctx([EngineDirEntry::test_file(&name)]);
+        for (quote, holds) in [('\'', single_holds), ('"', double_holds)] {
+            let line = format!("ls {quote}a");
+            let expected = if holds {
+                vec![(name.clone(), format!("{quote}{name}{quote}"))]
+            } else {
+                vec![]
+            };
+            assert_eq!(
+                tab_completions_at_cursor(&line, line.len(), false, &ctx),
+                expected,
+                "line: {line}, name: {name}",
+            );
+        }
+    }
+}
+
+#[test]
+fn test_powershell_unquoted_path_completion_is_unchanged() {
+    let ctx = powershell_quoted_path_ctx();
+    let line = "ls one";
+    assert_eq!(
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
+        vec![("one two".to_owned(), "one` two".to_owned())],
     );
 }
 
