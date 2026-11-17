@@ -2740,6 +2740,47 @@ fn test_powershell_quotes_hold_other_special_chars() {
     );
 }
 
+fn posix_completions(name: &str, quote: char) -> Vec<(String, String)> {
+    let path_ctx = MockPathCompletionContext::new(TypedPathBuf::from(TEST_WORK_DIR))
+        .with_entries_in_pwd([EngineDirEntry::test_file(name)]);
+    let ctx = FakeCompletionContext::new(create_test_command_registry([ls_signature()]))
+        .with_path_completion_context(path_ctx);
+    let line = format!("ls {quote}a");
+    tab_completions_at_cursor(&line, line.len(), false, &ctx)
+}
+
+#[test]
+fn test_posix_single_quote_skips_names_with_special_chars() {
+    let names = ["a'b", r"a\b"];
+    assert_eq!(
+        names.map(|name| posix_completions(name, '\'')),
+        names.map(|_| vec![]),
+    );
+}
+
+#[test]
+fn test_posix_double_quote_skips_names_with_special_chars() {
+    let names = ["a\"b", "a$b", "a`b", r"a\b", "a!b"];
+    assert_eq!(
+        names.map(|name| posix_completions(name, '"')),
+        names.map(|_| vec![]),
+    );
+}
+
+#[test]
+fn test_posix_quotes_hold_other_special_chars() {
+    let single_holds = ["a\"b", "a$b", "a`b", "a!b"];
+    assert_eq!(
+        single_holds.map(|name| posix_completions(name, '\'')),
+        single_holds.map(|name| quoted_completion(name, '\'')),
+    );
+    let double_holds = ["a'b"];
+    assert_eq!(
+        double_holds.map(|name| posix_completions(name, '"')),
+        double_holds.map(|name| quoted_completion(name, '"')),
+    );
+}
+
 #[test]
 fn test_powershell_unquoted_path_completion_is_unchanged() {
     let ctx = powershell_quoted_path_ctx();
