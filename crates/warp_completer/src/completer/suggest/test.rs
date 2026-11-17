@@ -2616,6 +2616,11 @@ fn test_powershell_path_completion_keeps_opening_quote() {
         tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("one two".to_owned(), "\"one two\"".to_owned())],
     );
+}
+
+#[test]
+fn test_powershell_quoted_directory_completion_leaves_quote_open() {
+    let ctx = powershell_quoted_path_ctx();
     let line = "ls 'dir";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),

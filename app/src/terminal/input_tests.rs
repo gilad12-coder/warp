@@ -8347,7 +8347,7 @@ fn test_classic_cycling_keeps_auto_closed_quote() {
         input.read(&app, |input, ctx| {
             assert_eq!(input.buffer_text(ctx), "ls 'one two'");
         });
-    })
+    });
 }
 
 #[test]
