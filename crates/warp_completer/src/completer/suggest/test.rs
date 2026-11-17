@@ -2562,6 +2562,11 @@ fn test_quoted_completion_skips_names_the_quote_cannot_hold() {
         tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![],
     );
+}
+
+#[test]
+fn test_single_quote_holds_dollar_sign() {
+    let ctx = quoted_path_ctx();
     let line = "ls 'cost";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
