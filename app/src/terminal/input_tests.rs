@@ -635,6 +635,16 @@ fn quoted_path_suggestion(name: &str, file_type: EngineFileType) -> MatchedSugge
     )
 }
 
+fn type_before_closing_quote(input: &mut Input, ctx: &mut ViewContext<Input>) {
+    input.clear_buffer_and_reset_undo_stack(ctx);
+    let line = "ls 'one'";
+    input.user_insert(line, ctx);
+    let cursor = ByteOffset::from(line.len() - 1);
+    input.editor.update(ctx, |editor, ctx| {
+        editor.select_ranges_by_byte_offset([cursor..cursor], ctx);
+    });
+}
+
 fn case_insensitive_argument_suggestion(name: impl Into<SmolStr>) -> MatchedSuggestion {
     let suggestion = Suggestion::with_same_display_and_replacement(
         name,
@@ -4282,15 +4292,6 @@ fn test_tab_completion_before_auto_closed_quote() {
         )
         .await;
         let input = terminal.read(&app, |view, _| view.input().clone());
-        let type_before_closing_quote = |input: &mut Input, ctx: &mut ViewContext<Input>| {
-            input.clear_buffer_and_reset_undo_stack(ctx);
-            let line = "ls 'one'";
-            input.user_insert(line, ctx);
-            let cursor = ByteOffset::from(line.len() - 1);
-            input.editor.update(ctx, |editor, ctx| {
-                editor.select_ranges_by_byte_offset([cursor..cursor], ctx);
-            });
-        };
 
         input.update(&mut app, |input, ctx| {
             type_before_closing_quote(input, ctx);
@@ -8322,13 +8323,7 @@ fn test_classic_cycling_keeps_auto_closed_quote() {
         });
 
         input.update(&mut app, |input, ctx| {
-            input.clear_buffer_and_reset_undo_stack(ctx);
-            let line = "ls 'one'";
-            input.user_insert(line, ctx);
-            let cursor = ByteOffset::from(line.len() - 1);
-            input.editor.update(ctx, |editor, ctx| {
-                editor.select_ranges_by_byte_offset([cursor..cursor], ctx);
-            });
+            type_before_closing_quote(input, ctx);
             input.input_tab(ctx);
             input.handle_completion_suggestions_results(
                 build_suggestion_results(
@@ -8345,18 +8340,18 @@ fn test_classic_cycling_keeps_auto_closed_quote() {
             );
         });
 
-        // Three steps over two items move from the file to the directory at least once.
-        for _ in 0..3 {
-            input.update(&mut app, |input, ctx| input.input_tab(ctx));
-            input.read(&app, |input, ctx| {
-                let expected = match input.input_suggestions.as_ref(ctx).get_selected_item_text() {
-                    Some("'one two'") => "ls 'one two'",
-                    Some("'one dir/") => "ls 'one dir/'",
-                    other => panic!("Unexpected selected suggestion {other:?}"),
-                };
-                assert_eq!(input.buffer_text(ctx), expected);
-            });
-        }
+        input.update(&mut app, |input, ctx| input.input_tab(ctx));
+        input.read(&app, |input, ctx| {
+            assert_eq!(input.buffer_text(ctx), "ls 'one two'");
+        });
+        input.update(&mut app, |input, ctx| input.input_tab(ctx));
+        input.read(&app, |input, ctx| {
+            assert_eq!(input.buffer_text(ctx), "ls 'one dir/'");
+        });
+        input.update(&mut app, |input, ctx| input.input_tab(ctx));
+        input.read(&app, |input, ctx| {
+            assert_eq!(input.buffer_text(ctx), "ls 'one two'");
+        });
     })
 }
 

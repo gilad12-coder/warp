@@ -795,29 +795,50 @@ fn keep_opening_quote(
     };
     let shell_family = path_completion_context.shell_family();
     let separators = path_completion_context.path_separators().all;
+    for matched in suggestions.iter_mut() {
+        let suggestion = &mut matched.suggestion;
+        if suggestion.file_type.is_none() {
+            continue;
+        }
+        if let Some(replacement) =
+            quoted_replacement(&suggestion.replacement, quote, shell_family, separators)
+        {
+            suggestion.replacement = replacement.into();
+        }
+    }
+}
+
+/// Returns `replacement` inside `quote`, or `None` when the quote cannot hold it. The quote stays
+/// open after a directory so that completion can continue inside it.
+fn quoted_replacement(
+    replacement: &str,
+    quote: char,
+    shell_family: ShellFamily,
+    separators: &[char],
+) -> Option<String> {
+    if replacement.starts_with(['~', '$']) {
+        return None;
+    }
+    let raw = shell_family.unescape(replacement);
+    if raw.contains(quote_breaking_chars(shell_family, quote)) {
+        return None;
+    }
+    let mut quoted = format!("{quote}{raw}");
+    if !raw.ends_with(separators) {
+        quoted.push(quote);
+    }
+    Some(quoted)
+}
+
+fn quote_breaking_chars(shell_family: ShellFamily, quote: char) -> &'static [char] {
     // Quoting disables tilde and `$HOME` expansion, and these characters end the quote or keep a
     // special meaning inside it. Paths with them keep the escaped form. Fish reads `\\` and `\'`
     // as escapes inside single quotes. PowerShell also ends a string at typographic quotes.
-    let quote_breaking_chars: &[char] = match (shell_family, quote == '\'') {
+    match (shell_family, quote == '\'') {
         (ShellFamily::Posix, true) => &['\'', '\\'],
         (ShellFamily::Posix, false) => &['"', '$', '`', '\\', '!'],
         (ShellFamily::PowerShell, true) => &['\'', '\u{2018}', '\u{2019}', '\u{201A}', '\u{201B}'],
         (ShellFamily::PowerShell, false) => &['"', '$', '`', '\u{201C}', '\u{201D}', '\u{201E}'],
-    };
-    for matched in suggestions.iter_mut() {
-        let suggestion = &mut matched.suggestion;
-        if suggestion.file_type.is_none() || suggestion.replacement.starts_with(['~', '$']) {
-            continue;
-        }
-        let raw = shell_family.unescape(&suggestion.replacement);
-        if raw.contains(quote_breaking_chars) {
-            continue;
-        }
-        let mut replacement = format!("{quote}{raw}");
-        if !raw.ends_with(separators) {
-            replacement.push(quote);
-        }
-        suggestion.replacement = replacement.into();
     }
 }
 

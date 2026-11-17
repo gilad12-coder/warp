@@ -1104,6 +1104,30 @@ fn quoted_completion_consumes_closing_quote_after_cursor() {
             assert!(applied);
             assert_eq!(text(&view, ctx), "ls 'one two' ");
 
+            view.update(ctx, |view, ctx| view.set_text("ls 'éc' tail", ctx));
+            let applied = view.update(ctx, |view, ctx| {
+                view.apply_shell_completion(
+                    TuiCompletionAcceptance {
+                        replacement: "'école x'".to_owned(),
+                        replacement_range: 3.."ls 'éc".len(),
+                        append_space: false,
+                    },
+                    ctx,
+                )
+            });
+
+            assert!(applied);
+            assert_eq!(text(&view, ctx), "ls 'école x' tail");
+        });
+    });
+}
+
+#[test]
+fn quoted_directory_completion_keeps_closing_quote_after_cursor() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            let view = build_view(ctx);
+            type_str(&view, ctx, "!");
             // A directory keeps the quote open, so the closing quote stays.
             view.update(ctx, |view, ctx| view.set_text("ls 'dir'", ctx));
             let applied = view.update(ctx, |view, ctx| {
@@ -1119,21 +1143,6 @@ fn quoted_completion_consumes_closing_quote_after_cursor() {
 
             assert!(applied);
             assert_eq!(text(&view, ctx), "ls 'dir one/'");
-
-            view.update(ctx, |view, ctx| view.set_text("ls 'éc' tail", ctx));
-            let applied = view.update(ctx, |view, ctx| {
-                view.apply_shell_completion(
-                    TuiCompletionAcceptance {
-                        replacement: "'école x'".to_owned(),
-                        replacement_range: 3.."ls 'éc".len(),
-                        append_space: false,
-                    },
-                    ctx,
-                )
-            });
-
-            assert!(applied);
-            assert_eq!(text(&view, ctx), "ls 'école x' tail");
         });
     });
 }
