@@ -4285,13 +4285,8 @@ fn test_tab_completion_with_leading_space() {
 fn test_tab_completion_before_auto_closed_quote() {
     App::test((), |mut app| async move {
         initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |view, _| view.input().clone());
+        let terminal = add_window_with_bootstrapped_terminal(&mut app, None, None).await;
+        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
 
         input.update(&mut app, |input, ctx| {
             type_before_closing_quote(input, ctx);
