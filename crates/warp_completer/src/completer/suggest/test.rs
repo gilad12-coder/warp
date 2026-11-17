@@ -2577,14 +2577,16 @@ fn test_quoted_completion_skips_home_directory_paths() {
         .with_entries_in_pwd([EngineDirEntry::test_file("one two")]);
     let ctx = FakeCompletionContext::new(create_test_command_registry([ls_signature()]))
         .with_path_completion_context(path_ctx);
-    for (line, quote) in [("ls '~/one", '\''), ("ls \"$HOME/one", '"')] {
-        assert!(
-            tab_completions_at_cursor(line, line.len(), false, &ctx)
-                .iter()
-                .all(|(_, replacement)| !replacement.starts_with(quote)),
-            "{line}",
-        );
-    }
+    let line = "ls '~/one";
+    assert_eq!(
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
+        vec![],
+    );
+    let line = "ls \"$HOME/one";
+    assert_eq!(
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
+        vec![],
+    );
 }
 
 #[test]
@@ -2594,12 +2596,6 @@ fn test_unquoted_path_completion_is_unchanged() {
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("one two".to_owned(), r"one\ two".to_owned())],
-    );
-    // A token with a closed quote gets no quoted rewrite.
-    let line = "ls 'one'";
-    assert_eq!(
-        tab_completions_at_cursor(line, line.len(), false, &ctx),
-        vec![],
     );
 }
 

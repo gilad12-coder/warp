@@ -680,9 +680,8 @@ pub enum InputSuggestionsMode {
         /// Where the menu should be positioned.
         menu_position: TabCompletionsMenuPosition,
 
-        /// The quote that closed the replaced token right after the cursor when the menu opened,
-        /// such as one the editor auto-inserted. Cycling to a closed suggestion consumes it, so
-        /// the next cycle step must give it back.
+        /// The quote that closed the replaced token right after the cursor when the menu opened.
+        /// Cycling to a closed suggestion consumes it, so the next cycle step must give it back.
         auto_closed_quote: Option<char>,
     },
 
