@@ -767,13 +767,17 @@ pub fn quote_closed_after_cursor(
     cursor_end: usize,
 ) -> Option<char> {
     let replaced_token = buffer_text.get(replacement_start..cursor_end)?;
-    replaced_token
+    unclosed_opening_quote(replaced_token)
+        .filter(|quote| buffer_text[cursor_end..].starts_with(*quote))
+}
+
+/// Returns the quote that `token` opens without closing.
+fn unclosed_opening_quote(token: &str) -> Option<char> {
+    token
         .chars()
         .next()
         .filter(|quote| matches!(quote, '\'' | '"'))
-        .filter(|quote| {
-            !replaced_token[1..].contains(*quote) && buffer_text[cursor_end..].starts_with(*quote)
-        })
+        .filter(|quote| !token[1..].contains(*quote))
 }
 
 /// When `token` opens a quote it does not close, rewrites file suggestions to keep that quote, so
@@ -783,12 +787,9 @@ fn keep_opening_quote(
     token: &str,
     ctx: &dyn CompletionContext,
 ) {
-    let Some(quote) = token.chars().next().filter(|c| matches!(c, '\'' | '"')) else {
+    let Some(quote) = unclosed_opening_quote(token) else {
         return;
     };
-    if token[1..].contains(quote) {
-        return;
-    }
     let Some(path_completion_context) = ctx.path_completion_context() else {
         return;
     };

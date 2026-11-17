@@ -2570,6 +2570,24 @@ fn test_quoted_completion_skips_names_the_quote_cannot_hold() {
 }
 
 #[test]
+fn test_quoted_completion_skips_home_directory_paths() {
+    let pwd = TypedPathBuf::from(TEST_WORK_DIR);
+    let path_ctx = MockPathCompletionContext::new(pwd)
+        .with_home_directory(TEST_WORK_DIR.to_owned())
+        .with_entries_in_pwd([EngineDirEntry::test_file("one two")]);
+    let ctx = FakeCompletionContext::new(create_test_command_registry([ls_signature()]))
+        .with_path_completion_context(path_ctx);
+    for (line, quote) in [("ls '~/one", '\''), ("ls \"$HOME/one", '"')] {
+        assert!(
+            tab_completions_at_cursor(line, line.len(), false, &ctx)
+                .iter()
+                .all(|(_, replacement)| !replacement.starts_with(quote)),
+            "{line}",
+        );
+    }
+}
+
+#[test]
 fn test_unquoted_path_completion_is_unchanged() {
     let ctx = quoted_path_ctx();
     let line = "ls one";
