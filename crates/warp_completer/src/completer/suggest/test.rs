@@ -2587,7 +2587,7 @@ fn test_quoted_completion_skips_home_directory_paths() {
         tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![],
     );
-    let line = "ls \"$HOME/one";
+    let line = "ls '$HOME/one";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![],

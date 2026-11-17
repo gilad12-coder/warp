@@ -816,7 +816,7 @@ fn quoted_replacement(
     shell_family: ShellFamily,
     separators: &[char],
 ) -> Option<String> {
-    // Quoting disables tilde and `$HOME` expansion.
+    // Quotes disable `~` expansion, and single quotes also disable `$` expansion.
     if replacement.starts_with(['~', '$']) {
         return None;
     }
