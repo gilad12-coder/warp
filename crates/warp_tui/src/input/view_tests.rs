@@ -1128,7 +1128,6 @@ fn quoted_directory_completion_keeps_closing_quote_after_cursor() {
         app.update(|ctx| {
             let view = build_view(ctx);
             type_str(&view, ctx, "!");
-            // A directory keeps the quote open, so the closing quote stays.
             view.update(ctx, |view, ctx| view.set_text("ls 'dir'", ctx));
             let applied = view.update(ctx, |view, ctx| {
                 view.apply_shell_completion(

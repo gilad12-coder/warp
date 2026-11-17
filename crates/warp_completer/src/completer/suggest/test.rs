@@ -2493,7 +2493,7 @@ fn test_quoted_completion_with_multibyte_name() {
     );
     assert_eq!(
         completion_replacement_end(line, 3, cursor, "'école x'"),
-        line.len()
+        line.len(),
     );
 }
 
@@ -2550,17 +2550,17 @@ fn test_quoted_completion_skips_names_the_quote_cannot_hold() {
     let line = "ls 'it";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
-        vec![]
+        vec![],
     );
     let line = "ls \"cost";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
-        vec![]
+        vec![],
     );
     let line = "ls 'back";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
-        vec![]
+        vec![],
     );
     let line = "ls 'cost";
     assert_eq!(
@@ -2581,7 +2581,7 @@ fn test_unquoted_path_completion_is_unchanged() {
     let line = "ls 'one'";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
-        vec![]
+        vec![],
     );
 }
 
@@ -2731,38 +2731,37 @@ fn test_completion_replacement_end_consumes_closing_quote() {
     let buffer = "ls 'one tw'";
     assert_eq!(
         completion_replacement_end(buffer, 3, buffer.len() - 1, "'one two'"),
-        buffer.len()
+        buffer.len(),
     );
     let buffer = "ls \"one tw\"";
     assert_eq!(
         completion_replacement_end(buffer, 3, buffer.len() - 1, "\"one two\""),
-        buffer.len()
+        buffer.len(),
     );
 }
 
 #[test]
 fn test_completion_replacement_end_keeps_closing_quote_for_open_insertions() {
-    // A partial prefix or a directory keeps the quote open and needs the closing quote.
     let buffer = "ls 'one tw'";
     let cursor = buffer.len() - 1;
     assert_eq!(
         completion_replacement_end(buffer, 3, cursor, "'one t"),
-        cursor
+        cursor,
     );
     assert_eq!(
         completion_replacement_end(buffer, 3, cursor, "'dir one/"),
-        cursor
+        cursor,
     );
     assert_eq!(completion_replacement_end(buffer, 3, cursor, "'"), cursor);
     let buffer = "ls \"one tw\"";
     let cursor = buffer.len() - 1;
     assert_eq!(
         completion_replacement_end(buffer, 3, cursor, "\"one t"),
-        cursor
+        cursor,
     );
     assert_eq!(
         completion_replacement_end(buffer, 3, cursor, "\"dir one/"),
-        cursor
+        cursor,
     );
     assert_eq!(completion_replacement_end(buffer, 3, cursor, "\""), cursor);
 }
@@ -2773,24 +2772,24 @@ fn test_completion_replacement_end_ignores_other_tokens() {
     let buffer = "ls 'one two''";
     assert_eq!(
         completion_replacement_end(buffer, 3, buffer.len() - 1, "'one two'"),
-        buffer.len() - 1
+        buffer.len() - 1,
     );
     // No quote follows the cursor.
     let buffer = "ls 'one";
     assert_eq!(
         completion_replacement_end(buffer, 3, buffer.len(), "'one two'"),
-        buffer.len()
+        buffer.len(),
     );
     // The token does not open a quote.
     let buffer = "ls one'";
     assert_eq!(
         completion_replacement_end(buffer, 3, buffer.len() - 1, "'one two'"),
-        buffer.len() - 1
+        buffer.len() - 1,
     );
     // A different quote follows the cursor.
     let buffer = "ls 'one\"";
     assert_eq!(
         completion_replacement_end(buffer, 3, buffer.len() - 1, "'one two'"),
-        buffer.len() - 1
+        buffer.len() - 1,
     );
 }
