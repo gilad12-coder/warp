@@ -816,6 +816,7 @@ fn quoted_replacement(
     shell_family: ShellFamily,
     separators: &[char],
 ) -> Option<String> {
+    // Quoting disables tilde and `$HOME` expansion.
     if replacement.starts_with(['~', '$']) {
         return None;
     }
@@ -831,9 +832,9 @@ fn quoted_replacement(
 }
 
 fn quote_breaking_chars(shell_family: ShellFamily, quote: char) -> &'static [char] {
-    // Quoting disables tilde and `$HOME` expansion, and these characters end the quote or keep a
-    // special meaning inside it. Paths with them keep the escaped form. Fish reads `\\` and `\'`
-    // as escapes inside single quotes. PowerShell also ends a string at typographic quotes.
+    // These characters end the quote or keep a special meaning inside it. Paths with them keep
+    // the escaped form. Fish reads `\\` and `\'` as escapes inside single quotes. PowerShell also
+    // ends a string at typographic quotes.
     match (shell_family, quote == '\'') {
         (ShellFamily::Posix, true) => &['\'', '\\'],
         (ShellFamily::Posix, false) => &['"', '$', '`', '\\', '!'],

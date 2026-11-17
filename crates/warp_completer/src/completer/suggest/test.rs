@@ -2736,9 +2736,14 @@ fn test_completion_replacement_end_keeps_closing_quote_for_open_insertions() {
     let buffer = "ls \"one tw\"";
     let cursor = buffer.len() - 1;
     assert_eq!(
+        completion_replacement_end(buffer, 3, cursor, "\"one t"),
+        cursor
+    );
+    assert_eq!(
         completion_replacement_end(buffer, 3, cursor, "\"dir one/"),
         cursor
     );
+    assert_eq!(completion_replacement_end(buffer, 3, cursor, "\""), cursor);
 }
 
 #[test]
