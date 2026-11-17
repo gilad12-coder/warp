@@ -780,8 +780,8 @@ fn unclosed_opening_quote(token: &str) -> Option<char> {
         .filter(|quote| !token[1..].contains(*quote))
 }
 
-/// When `token` opens a quote it does not close, rewrites file suggestions to keep that quote, so
-/// accepting `'one` gives `'one two'` instead of `one\ two` with a dangling quote.
+/// When `token` opens a quote it does not close, rewrites file suggestions to keep that quote,
+/// because the replacement span includes it.
 fn keep_opening_quote(
     suggestions: &mut [MatchedSuggestion],
     token: &str,
@@ -816,7 +816,7 @@ fn quoted_replacement(
     shell_family: ShellFamily,
     separators: &[char],
 ) -> Option<String> {
-    // Quotes disable `~` expansion, and single quotes also disable `$` expansion.
+    // POSIX quotes disable `~` expansion, and single quotes disable `$` expansion in every shell.
     if replacement.starts_with(['~', '$']) {
         return None;
     }
