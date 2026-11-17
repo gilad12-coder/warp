@@ -777,8 +777,7 @@ pub fn quote_closed_after_cursor(
 }
 
 /// When `token` opens a quote it does not close, rewrites file suggestions to keep that quote, so
-/// accepting `'one` gives `'one two'` instead of `one\ two` with a dangling quote. A directory
-/// keeps its quote open so the path can continue.
+/// accepting `'one` gives `'one two'` instead of `one\ two` with a dangling quote.
 fn keep_opening_quote(
     suggestions: &mut [MatchedSuggestion],
     token: &str,
@@ -831,10 +830,10 @@ fn quoted_replacement(
     Some(quoted)
 }
 
+/// Returns the characters that end `quote` or keep a special meaning inside it.
 fn quote_breaking_chars(shell_family: ShellFamily, quote: char) -> &'static [char] {
-    // These characters end the quote or keep a special meaning inside it. Paths with them keep
-    // the escaped form. Fish reads `\\` and `\'` as escapes inside single quotes. PowerShell also
-    // ends a string at typographic quotes.
+    // Fish reads `\\` and `\'` as escapes inside single quotes. PowerShell also ends a string at
+    // typographic quotes.
     match (shell_family, quote == '\'') {
         (ShellFamily::Posix, true) => &['\'', '\\'],
         (ShellFamily::Posix, false) => &['"', '$', '`', '\\', '!'],

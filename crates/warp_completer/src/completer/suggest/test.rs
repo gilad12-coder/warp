@@ -2439,12 +2439,14 @@ fn quoted_path_ctx() -> FakeCompletionContext {
 #[test]
 fn test_path_completion_keeps_opening_quote() {
     let ctx = quoted_path_ctx();
+    let line = "ls 'one";
     assert_eq!(
-        tab_completions_at_cursor("ls 'one", 7, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("one two".to_owned(), "'one two'".to_owned())],
     );
+    let line = "ls \"one";
     assert_eq!(
-        tab_completions_at_cursor("ls \"one", 7, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("one two".to_owned(), "\"one two\"".to_owned())],
     );
 }
@@ -2452,12 +2454,14 @@ fn test_path_completion_keeps_opening_quote() {
 #[test]
 fn test_file_path_only_completion_keeps_opening_quote() {
     let ctx = quoted_path_ctx();
+    let line = "ls 'one";
     assert_eq!(
-        tab_completions_at_cursor("ls 'one", 7, true, &ctx),
+        tab_completions_at_cursor(line, line.len(), true, &ctx),
         vec![("one two".to_owned(), "'one two'".to_owned())],
     );
+    let line = "ls \"one";
     assert_eq!(
-        tab_completions_at_cursor("ls \"one", 7, true, &ctx),
+        tab_completions_at_cursor(line, line.len(), true, &ctx),
         vec![("one two".to_owned(), "\"one two\"".to_owned())],
     );
 }
@@ -2496,8 +2500,9 @@ fn test_quoted_completion_with_multibyte_name() {
 #[test]
 fn test_quoted_directory_completion_leaves_quote_open() {
     let ctx = quoted_path_ctx();
+    let line = "ls 'dir";
     assert_eq!(
-        tab_completions_at_cursor("ls 'dir", 7, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("dir one/".to_owned(), "'dir one/".to_owned())],
     );
     let line = "ls 'dir one/fi";
@@ -2542,13 +2547,19 @@ fn test_quoted_completion_common_prefix_keeps_opening_quote() {
 fn test_quoted_completion_skips_names_the_quote_cannot_hold() {
     let ctx = quoted_path_ctx();
     // These names keep their escaped replacement, which does not match the quoted query.
-    assert_eq!(tab_completions_at_cursor("ls 'it", 6, false, &ctx), vec![]);
+    let line = "ls 'it";
     assert_eq!(
-        tab_completions_at_cursor("ls \"cost", 8, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![]
     );
+    let line = "ls \"cost";
     assert_eq!(
-        tab_completions_at_cursor("ls 'back", 8, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
+        vec![]
+    );
+    let line = "ls 'back";
+    assert_eq!(
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![]
     );
     let line = "ls 'cost";
@@ -2595,30 +2606,40 @@ fn powershell_quoted_path_ctx() -> FakeCompletionContext {
 #[test]
 fn test_powershell_path_completion_keeps_opening_quote() {
     let ctx = powershell_quoted_path_ctx();
+    let line = "ls 'one";
     assert_eq!(
-        tab_completions_at_cursor("ls 'one", 7, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("one two".to_owned(), "'one two'".to_owned())],
     );
+    let line = "ls \"one";
     assert_eq!(
-        tab_completions_at_cursor("ls 'one", 7, true, &ctx),
-        vec![("one two".to_owned(), "'one two'".to_owned())],
-    );
-    assert_eq!(
-        tab_completions_at_cursor("ls \"one", 7, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("one two".to_owned(), "\"one two\"".to_owned())],
     );
+    let line = "ls 'dir";
     assert_eq!(
-        tab_completions_at_cursor("ls \"one", 7, true, &ctx),
-        vec![("one two".to_owned(), "\"one two\"".to_owned())],
-    );
-    assert_eq!(
-        tab_completions_at_cursor("ls 'dir", 7, false, &ctx),
+        tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("dir one/".to_owned(), "'dir one/".to_owned())],
     );
     let line = "ls 'dir one/fi";
     assert_eq!(
         tab_completions_at_cursor(line, line.len(), false, &ctx),
         vec![("file".to_owned(), "'dir one/file'".to_owned())],
+    );
+}
+
+#[test]
+fn test_powershell_file_path_only_completion_keeps_opening_quote() {
+    let ctx = powershell_quoted_path_ctx();
+    let line = "ls 'one";
+    assert_eq!(
+        tab_completions_at_cursor(line, line.len(), true, &ctx),
+        vec![("one two".to_owned(), "'one two'".to_owned())],
+    );
+    let line = "ls \"one";
+    assert_eq!(
+        tab_completions_at_cursor(line, line.len(), true, &ctx),
+        vec![("one two".to_owned(), "\"one two\"".to_owned())],
     );
 }
 
